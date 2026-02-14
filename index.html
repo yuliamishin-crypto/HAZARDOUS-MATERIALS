@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8">
+<title>מאגר נתונים</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+body { font-family: Arial; direction: rtl; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #ccc; padding: 8px; }
+th { background-color: #f2f2f2; }
+#search { margin: 10px 0; padding: 8px; width: 300px; }
+</style>
+</head>
+<body>
+
+<h2>מאגר נתונים</h2>
+
+<input type="text" id="search" placeholder="חיפוש..." onkeyup="searchTable()">
+
+<table id="data-table"></table>
+
+<script>
+Papa.parse("data.csv", {
+    download: true,
+    header: true,
+    complete: function(results) {
+        const data = results.data;
+        const table = document.getElementById("data-table");
+
+        if (data.length === 0) return;
+
+        let headerRow = "<tr>";
+        Object.keys(data[0]).forEach(key => {
+            headerRow += "<th>" + key + "</th>";
+        });
+        headerRow += "</tr>";
+        table.innerHTML = headerRow;
+
+        data.forEach(row => {
+            let rowHTML = "<tr>";
+            Object.values(row).forEach(value => {
+                rowHTML += "<td>" + value + "</td>";
+            });
+            rowHTML += "</tr>";
+            table.innerHTML += rowHTML;
+        });
+    }
+});
+
+function searchTable() {
+    const input = document.getElementById("search").value.toLowerCase();
+    const rows = document.querySelectorAll("#data-table tr");
+
+    rows.forEach((row, index) => {
+        if (index === 0) return;
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(input) ? "" : "none";
+    });
+}
+</script>
+
+</body>
+</html>
