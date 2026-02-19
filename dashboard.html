@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HAZMAT Dashboard - מאגר חומרים מסוכנים</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+
+    /* ─── HEADER ─── */
+    .header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f2540 100%);
+      color: white;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .header-title { font-size: 1.7em; font-weight: 700; letter-spacing: -0.5px; }
+    .header-subtitle { font-size: 0.85em; opacity: 0.7; margin-top: 3px; }
+    .header-date { text-align: left; font-size: 0.85em; opacity: 0.8; }
+    .header-badge {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 0.8em;
+      margin-top: 5px;
+      display: inline-block;
+    }
+
+    .main { padding: 24px 32px; max-width: 1600px; margin: 0 auto; }
+
+    /* ─── KPI CARDS ─── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      border-top: 4px solid #2563eb;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+    .kpi-card.red   { border-top-color: #dc2626; }
+    .kpi-card.amber { border-top-color: #d97706; }
+    .kpi-card.green { border-top-color: #16a34a; }
+    .kpi-card.purple{ border-top-color: #7c3aed; }
+    .kpi-label { font-size: 0.8em; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-value { font-size: 2.2em; font-weight: 800; color: #0f172a; line-height: 1; }
+    .kpi-sub   { font-size: 0.78em; color: #94a3b8; }
+
+    /* ─── CHARTS ROW ─── */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .chart-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+    .chart-title {
+      font-size: 0.9em;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    canvas { display: block; }
+
+    /* ─── TABLE SECTION ─── */
+    .table-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .table-toolbar {
+      padding: 16px 20px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #f1f5f9;
+      background: #fafbfc;
+    }
+    .search-wrap { position: relative; flex: 1; min-width: 220px; }
+    .search-wrap input {
+      width: 100%;
+      padding: 9px 14px 9px 36px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.9em;
+      transition: border-color 0.2s;
+      direction: rtl;
+    }
+    .search-wrap input:focus { outline: none; border-color: #2563eb; }
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 1em;
+    }
+    .toolbar-select {
+      padding: 9px 12px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.85em;
+      background: white;
+      cursor: pointer;
+      color: #334155;
+    }
+    .toolbar-select:focus { outline: none; border-color: #2563eb; }
+    .result-count {
+      margin-right: auto;
+      font-size: 0.82em;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
+    .table-wrap { overflow-x: auto; max-height: 520px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875em; }
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #1e3a5f;
+      color: white;
+      padding: 12px 14px;
+      text-align: right;
+      font-weight: 600;
+      font-size: 0.8em;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    thead th:hover { background: #264d7f; }
+    thead th .sort-arrow { opacity: 0.4; margin-right: 4px; font-size: 0.85em; }
+    thead th.sorted .sort-arrow { opacity: 1; }
+
+    tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.15s; cursor: pointer; }
+    tbody tr:hover { background: #f8faff; }
+    tbody tr:last-child { border-bottom: none; }
+    td { padding: 11px 14px; vertical-align: middle; }
+
+    .chem-name-heb { font-weight: 600; color: #0f172a; }
+    .chem-name-eng { font-size: 0.8em; color: #64748b; margin-top: 1px; }
+
+    .formula-badge {
+      display: inline-block;
+      background: #eff6ff;
+      color: #1d4ed8;
+      padding: 2px 8px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 0.88em;
+    }
+
+    .risk-dot {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      font-weight: 800;
+      font-size: 0.85em;
+      color: white;
+    }
+    .risk-0 { background: #22c55e; }
+    .risk-1 { background: #eab308; }
+    .risk-2 { background: #f97316; }
+    .risk-3 { background: #ef4444; }
+    .risk-4 { background: #7c3aed; }
+
+    .cat-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.78em;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .cat-נוזלים\ דליקים   { background: #fef3c7; color: #92400e; }
+    .cat-גזים\ דליקים     { background: #fde8d8; color: #9a3412; }
+    .cat-חומרים\ קורוזיביים{ background: #ede9fe; color: #5b21b6; }
+    .cat-גזים\ רעילים     { background: #fce7f3; color: #9d174d; }
+    .cat-חומרים\ מחמצנים  { background: #d1fae5; color: #065f46; }
+    .cat-חומרי\ נפץ       { background: #fee2e2; color: #7f1d1d; }
+
+    /* ─── MODAL ─── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.2s;
+    }
+    .modal-overlay.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 680px;
+      width: 90%;
+      position: relative;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+      animation: slideUp 0.25s;
+    }
+    @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: #f1f5f9;
+      border: none;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      font-size: 1.1em;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #64748b;
+    }
+    .modal-close:hover { background: #e2e8f0; color: #1e293b; }
+
+    .modal-name-heb { font-size: 1.6em; font-weight: 800; color: #0f172a; }
+    .modal-name-eng { font-size: 1em; color: #64748b; margin-top: 2px; }
+    .modal-formula  { font-size: 1.4em; font-weight: 700; color: #1d4ed8; font-family: monospace; margin-top: 8px; }
+
+    .modal-body { display: grid; grid-template-columns: 1fr auto; gap: 24px; margin-top: 20px; align-items: start; }
+
+    .modal-details { display: flex; flex-direction: column; gap: 10px; }
+    .modal-detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border-right: 3px solid #2563eb;
+    }
+    .modal-detail-label { font-size: 0.82em; color: #64748b; font-weight: 600; }
+    .modal-detail-value { font-size: 0.92em; font-weight: 600; color: #0f172a; }
+
+    /* NFPA Diamond */
+    .nfpa-diamond { text-align: center; }
+    .nfpa-diamond-title { font-size: 0.78em; color: #64748b; font-weight: 600; margin-bottom: 8px; }
+    .nfpa-diamond svg text { font-family: 'Segoe UI', Arial, sans-serif; }
+
+    /* ─── PUBCHEM ─── */
+    .pubchem-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      border-top: 4px solid #16a34a;
+    }
+    .pubchem-title { font-weight: 700; color: #15803d; margin-bottom: 12px; font-size: 0.95em; }
+    .pubchem-search-row { display: flex; gap: 10px; }
+    .pubchem-search-row input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.9em;
+      direction: ltr;
+    }
+    .pubchem-search-row input:focus { outline: none; border-color: #16a34a; }
+    .btn-pubchem {
+      background: #16a34a;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-pubchem:hover { background: #15803d; }
+    .btn-pubchem:disabled { opacity: 0.5; cursor: not-allowed; }
+    #pubchemResult { margin-top: 16px; }
+    .pubchem-result-card {
+      background: #f0fdf4;
+      border: 1.5px solid #86efac;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .pubchem-result-card .label { font-size: 0.78em; color: #64748b; font-weight: 600; }
+    .pubchem-result-card .value { font-size: 0.95em; color: #0f172a; font-weight: 600; margin-top: 2px; }
+    .pubchem-error { color: #dc2626; font-size: 0.88em; padding: 10px; background: #fef2f2; border-radius: 8px; }
+    .pubchem-loading { color: #16a34a; font-size: 0.88em; padding: 10px; }
+
+    @media (max-width: 900px) {
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .charts-row { grid-template-columns: 1fr; }
+      .main { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div>
+    <div class="header-title">🔬 HAZMAT Dashboard</div>
+    <div class="header-subtitle">מאגר חומרים מסוכנים · NFPA 30 &amp; 400 · PubChem</div>
+  </div>
+  <div class="header-date">
+    <div id="headerDate"></div>
+    <div class="header-badge">NFPA 30 · NFPA 400 · UN</div>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- KPI CARDS -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">סה"כ חומרים</div>
+      <div class="kpi-value" id="kpiTotal">0</div>
+      <div class="kpi-sub">במאגר</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">סיכון אש גבוה</div>
+      <div class="kpi-value" id="kpiHighFire">0</div>
+      <div class="kpi-sub">רמה 3-4 (NFPA)</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">סיכון בריאותי</div>
+      <div class="kpi-value" id="kpiHighHealth">0</div>
+      <div class="kpi-sub">רמה 3 (NFPA)</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">ריאקטיביות גבוהה</div>
+      <div class="kpi-value" id="kpiHighReact">0</div>
+      <div class="kpi-sub">רמה 3-4 (NFPA)</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">קטגוריות NFPA 400</div>
+      <div class="kpi-value" id="kpiCats">0</div>
+      <div class="kpi-sub">סוגים שונים</div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">📊 התפלגות קטגוריות NFPA 400</div>
+      <canvas id="catChart" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🔥 התפלגות רמות סיכון אש</div>
+      <canvas id="fireChart" width="260" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="filterInput" placeholder="חיפוש לפי שם, CAS, UN, נוסחה..." oninput="applyFilters()">
+      </div>
+      <select class="toolbar-select" id="filterCat" onchange="applyFilters()">
+        <option value="">כל הקטגוריות</option>
+      </select>
+      <select class="toolbar-select" id="filterFire" onchange="applyFilters()">
+        <option value="">כל רמות אש</option>
+        <option value="0">אש 0</option>
+        <option value="1">אש 1</option>
+        <option value="2">אש 2</option>
+        <option value="3">אש 3</option>
+        <option value="4">אש 4</option>
+      </select>
+      <select class="toolbar-select" id="filterHealth" onchange="applyFilters()">
+        <option value="">כל רמות בריאות</option>
+        <option value="0">בריאות 0</option>
+        <option value="1">בריאות 1</option>
+        <option value="2">בריאות 2</option>
+        <option value="3">בריאות 3</option>
+      </select>
+      <div class="result-count" id="resultCount"></div>
+    </div>
+    <div class="table-wrap">
+      <table id="chemTable">
+        <thead>
+          <tr>
+            <th onclick="sortTable('nameHeb')"><span class="sort-arrow" id="arr-nameHeb">↕</span> שם עברי</th>
+            <th onclick="sortTable('nameEng')"><span class="sort-arrow" id="arr-nameEng">↕</span> English</th>
+            <th onclick="sortTable('formula')"><span class="sort-arrow" id="arr-formula">↕</span> נוסחה</th>
+            <th onclick="sortTable('cas')"><span class="sort-arrow" id="arr-cas">↕</span> CAS</th>
+            <th onclick="sortTable('nfpa400')"><span class="sort-arrow" id="arr-nfpa400">↕</span> קטגוריה</th>
+            <th onclick="sortTable('health')" style="text-align:center"><span class="sort-arrow" id="arr-health">↕</span> H</th>
+            <th onclick="sortTable('fire')"   style="text-align:center"><span class="sort-arrow" id="arr-fire">↕</span> F</th>
+            <th onclick="sortTable('reactivity')" style="text-align:center"><span class="sort-arrow" id="arr-reactivity">↕</span> R</th>
+            <th onclick="sortTable('flashPoint')"><span class="sort-arrow" id="arr-flashPoint">↕</span> נק' הבזק</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PUBCHEM -->
+  <div class="pubchem-card">
+    <div class="pubchem-title">🌐 חיפוש ב-PubChem — חומרים שאינם במאגר</div>
+    <div class="pubchem-search-row">
+      <input type="text" id="pubchemInput" placeholder="Chemical name or CAS number (English)..." />
+      <button class="btn-pubchem" onclick="runPubChem()">חפש</button>
+    </div>
+    <div id="pubchemResult"></div>
+  </div>
+
+</main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModalBtn()">✕</button>
+    <div class="modal-name-heb" id="mNameHeb"></div>
+    <div class="modal-name-eng" id="mNameEng"></div>
+    <div class="modal-formula"  id="mFormula"></div>
+    <div class="modal-body">
+      <div class="modal-details" id="mDetails"></div>
+      <div class="nfpa-diamond">
+        <div class="nfpa-diamond-title">NFPA Diamond</div>
+        <svg id="nfpaSvg" width="130" height="130" viewBox="0 0 130 130">
+          <polygon id="nfpaTop"    points="65,5 125,65 65,65"  fill="#3b82f6"/>
+          <polygon id="nfpaRight"  points="125,65 65,125 65,65" fill="#ef4444"/>
+          <polygon id="nfpaBottom" points="65,125 5,65 65,65"  fill="#f59e0b"/>
+          <polygon id="nfpaLeft"   points="5,65 65,5 65,65"    fill="#e2e8f0"/>
+          <polygon points="65,5 125,65 65,125 5,65" fill="none" stroke="#334155" stroke-width="2"/>
+          <line x1="5" y1="65" x2="125" y2="65" stroke="#334155" stroke-width="1.5"/>
+          <line x1="65" y1="5" x2="65" y2="125" stroke="#334155" stroke-width="1.5"/>
+          <text id="nfpaH" x="65" y="45"  text-anchor="middle" fill="white" font-size="20" font-weight="800" font-family="Arial">0</text>
+          <text id="nfpaF" x="95" y="90"  text-anchor="middle" fill="white" font-size="20" font-weight="800" font-family="Arial">0</text>
+          <text id="nfpaR" x="35" y="90"  text-anchor="middle" fill="white" font-size="20" font-weight="800" font-family="Arial">0</text>
+          <text         x="65" y="108" text-anchor="middle" fill="#64748b" font-size="9" font-family="Arial">W</text>
+        </svg>
+        <div style="display:flex;gap:6px;justify-content:center;margin-top:8px;font-size:0.7em;color:#64748b;">
+          <span>🔵 H=בריאות</span>
+          <span>🔴 F=אש</span>
+          <span>🟡 R=ריאקטיביות</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════════════ */
+const CHEMICALS_DATA = [
+  { nameHeb:"אתנול", nameEng:"Ethanol", formula:"C₂H₅OH", cas:"64-17-5", un:"1170", flashPoint:"13", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:2, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"אצטון", nameEng:"Acetone", formula:"CH₃COCH₃", cas:"67-64-1", un:"1090", flashPoint:"-18", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"מימן נוזלי", nameEng:"Liquid Hydrogen", formula:"H₂", cas:"1333-74-0", un:"1966", flashPoint:"גז", nfpa30:"", nfpa400:"גזים דליקים קריוגניים", health:0, fire:4, reactivity:3, maqStorage:"", maqUnit:'מ"ק', protectionLevel:"2" },
+  { nameHeb:"נתרן", nameEng:"Sodium", formula:"Na", cas:"7440-23-5", un:"1428", flashPoint:"לא רלוונטי", nfpa30:"", nfpa400:"חומרים רגישים למים", health:3, fire:1, reactivity:3, maqStorage:"45.4", maqUnit:'מ"ק', protectionLevel:"2" },
+  { nameHeb:"חמצן נוזלי", nameEng:"Liquid Oxygen", formula:"O₂", cas:"7782-44-7", un:"1073", flashPoint:"לא דליק", nfpa30:"", nfpa400:"חומרים מחמצנים קריוגניים", health:0, fire:0, reactivity:0, maqStorage:"", maqUnit:"", protectionLevel:"" },
+  { nameHeb:"בנזן", nameEng:"Benzene", formula:"C₆H₆", cas:"71-43-2", un:"1114", flashPoint:"-11", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:2, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"מתנול", nameEng:"Methanol", formula:"CH₃OH", cas:"67-56-1", un:"1230", flashPoint:"11", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"טולואן", nameEng:"Toluene", formula:"C₇H₈", cas:"108-88-3", un:"1294", flashPoint:"4", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:2, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"חומצה גופרתית 98%", nameEng:"Sulfuric Acid 98%", formula:"H₂SO₄", cas:"7664-93-9", un:"1830", flashPoint:"לא דליק", nfpa30:"", nfpa400:"חומרים קורוזיביים", health:3, fire:0, reactivity:2, maqStorage:"454", maqUnit:'מ"ק', protectionLevel:"N/A" },
+  { nameHeb:"אמוניה נוזלית", nameEng:"Liquid Ammonia", formula:"NH₃", cas:"7664-41-7", un:"1005", flashPoint:"גז", nfpa30:"", nfpa400:"גזים רעילים", health:3, fire:1, reactivity:0, maqStorage:"227", maqUnit:'מ"ק', protectionLevel:"3" },
+  { nameHeb:"כלור", nameEng:"Chlorine", formula:"Cl₂", cas:"7782-50-5", un:"1017", flashPoint:"גז", nfpa30:"", nfpa400:"גזים רעילים", health:3, fire:0, reactivity:0, maqStorage:"227", maqUnit:'מ"ק', protectionLevel:"3" },
+  { nameHeb:"פרופאן", nameEng:"Propane", formula:"C₃H₈", cas:"74-98-6", un:"1075", flashPoint:"גז", nfpa30:"", nfpa400:"גזים דליקים", health:1, fire:4, reactivity:0, maqStorage:"", maqUnit:'מ"ק', protectionLevel:"2" },
+  { nameHeb:"מימן פרוקסיד 35%", nameEng:"Hydrogen Peroxide 35%", formula:"H₂O₂", cas:"7722-84-1", un:"2015", flashPoint:"לא דליק", nfpa30:"", nfpa400:"חומרים מחמצנים", health:2, fire:0, reactivity:1, maqStorage:"", maqUnit:"", protectionLevel:"" },
+  { nameHeb:"אצטילן", nameEng:"Acetylene", formula:"C₂H₂", cas:"74-86-2", un:"1001", flashPoint:"גז", nfpa30:"", nfpa400:"גזים דליקים", health:1, fire:4, reactivity:3, maqStorage:"", maqUnit:'מ"ק', protectionLevel:"2" },
+  { nameHeb:"נתרן מתכתי", nameEng:"Sodium Metal", formula:"Na", cas:"7440-23-5", un:"1428", flashPoint:"לא דליק", nfpa30:"", nfpa400:"חומרים רגישים למים", health:3, fire:1, reactivity:3, maqStorage:"45.4", maqUnit:'מ"ק', protectionLevel:"2" },
+  { nameHeb:"THF (טטרהידרופוראן)", nameEng:"Tetrahydrofuran", formula:"C₄H₈O", cas:"109-99-9", un:"2056", flashPoint:"-14", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:2, fire:3, reactivity:1, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"דיכלורומתאן (DCM)", nameEng:"Dichloromethane", formula:"CH₂Cl₂", cas:"75-09-2", un:"1593", flashPoint:"לא דליק", nfpa30:"", nfpa400:"לא דליק", health:2, fire:0, reactivity:0, maqStorage:"", maqUnit:"", protectionLevel:"" },
+  { nameHeb:"כלורופורם", nameEng:"Chloroform", formula:"CHCl₃", cas:"67-66-3", un:"1888", flashPoint:"לא דליק", nfpa30:"", nfpa400:"לא דליק", health:2, fire:0, reactivity:0, maqStorage:"", maqUnit:"", protectionLevel:"" },
+  { nameHeb:"פחמן דו-גופרתי", nameEng:"Carbon Disulfide", formula:"CS₂", cas:"75-15-0", un:"1131", flashPoint:"-30", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:2, fire:4, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"ציקלוהקסאן", nameEng:"Cyclohexane", formula:"C₆H₁₂", cas:"110-82-7", un:"1145", flashPoint:"-20", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"n-הפטאן", nameEng:"n-Heptane", formula:"C₇H₁₆", cas:"142-82-5", un:"1206", flashPoint:"-4", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"הליום נוזלי", nameEng:"Liquid Helium", formula:"He", cas:"7440-59-7", un:"1963", flashPoint:"לא דליק", nfpa30:"", nfpa400:"גזים קריוגניים אינרטיים", health:0, fire:0, reactivity:0, maqStorage:"", maqUnit:"", protectionLevel:"N/A" },
+  { nameHeb:"אתאן נוזלי (LNG)", nameEng:"Liquid Ethane", formula:"C₂H₆", cas:"74-84-0", un:"1961", flashPoint:"גז", nfpa30:"", nfpa400:"גזים דליקים קריוגניים", health:1, fire:4, reactivity:0, maqStorage:"", maqUnit:'מ"ק', protectionLevel:"2" },
+  { nameHeb:"חומצה פוספורית 85%", nameEng:"Phosphoric Acid 85%", formula:"H₃PO₄", cas:"7664-38-2", un:"1805", flashPoint:"לא דליק", nfpa30:"", nfpa400:"חומרים קורוזיביים", health:3, fire:0, reactivity:0, maqStorage:"454", maqUnit:'מ"ק', protectionLevel:"N/A" },
+  { nameHeb:"חומצה אצטית קרחונית", nameEng:"Glacial Acetic Acid", formula:"CH₃COOH", cas:"64-19-7", un:"2789", flashPoint:"39", nfpa30:"Class II", nfpa400:"נוזלים בעירים", health:3, fire:2, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"n-בוטנול", nameEng:"n-Butanol", formula:"C₄H₉OH", cas:"71-36-3", un:"1120", flashPoint:"29", nfpa30:"Class IC", nfpa400:"נוזלים בעירים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"אתילן גליקול", nameEng:"Ethylene Glycol", formula:"C₂H₆O₂", cas:"107-21-1", un:"לא רלוונטי", flashPoint:"111", nfpa30:"Class IIIA", nfpa400:"נוזלים בעירים", health:1, fire:1, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"טריכלורואתילן (TCE)", nameEng:"Trichloroethylene", formula:"C₂HCl₃", cas:"79-01-6", un:"1710", flashPoint:"לא דליק", nfpa30:"", nfpa400:"לא דליק", health:2, fire:0, reactivity:0, maqStorage:"", maqUnit:"", protectionLevel:"" },
+  { nameHeb:"פרכלורואתילן (PERC)", nameEng:"Perchloroethylene", formula:"C₂Cl₄", cas:"127-18-4", un:"1897", flashPoint:"לא דליק", nfpa30:"", nfpa400:"לא דליק", health:0, fire:0, reactivity:0, maqStorage:"", maqUnit:"", protectionLevel:"" },
+  { nameHeb:"חנקתי נתרן", nameEng:"Sodium Nitrate", formula:"NaNO₃", cas:"7631-99-4", un:"1498", flashPoint:"לא דליק", nfpa30:"", nfpa400:"חומרים מחמצנים", health:1, fire:0, reactivity:1, maqStorage:"", maqUnit:"", protectionLevel:"" },
+  { nameHeb:"כלורי נתרן (אקונומיקה)", nameEng:"Sodium Hypochlorite", formula:"NaClO", cas:"7681-52-9", un:"1791", flashPoint:"לא דליק", nfpa30:"", nfpa400:"חומרים מחמצנים", health:2, fire:0, reactivity:1, maqStorage:"", maqUnit:"", protectionLevel:"" },
+  { nameHeb:"בוטיל אצטט", nameEng:"Butyl Acetate", formula:"C₆H₁₂O₂", cas:"123-86-4", un:"1123", flashPoint:"22", nfpa30:"Class IC", nfpa400:"נוזלים דליקים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"MIBK (מתיל איזובוטיל קטון)", nameEng:"Methyl Isobutyl Ketone", formula:"C₆H₁₂O", cas:"108-10-1", un:"2053", flashPoint:"14", nfpa30:"Class IC", nfpa400:"נוזלים דליקים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"TNT (טרי-ניטרו טולואן)", nameEng:"Trinitrotoluene", formula:"C₇H₅N₃O₆", cas:"118-96-7", un:"0209", flashPoint:"מוצק", nfpa30:"", nfpa400:"חומרי נפץ", health:2, fire:4, reactivity:4, maqStorage:"", maqUnit:"", protectionLevel:"" },
+  { nameHeb:"חנקתי אמוניום", nameEng:"Ammonium Nitrate", formula:"NH₄NO₃", cas:"6484-52-2", un:"1942", flashPoint:"מוצק", nfpa30:"", nfpa400:"חומרים מחמצנים", health:1, fire:0, reactivity:3, maqStorage:"", maqUnit:"", protectionLevel:"" },
+  { nameHeb:"אתיל בנזן", nameEng:"Ethylbenzene", formula:"C₈H₁₀", cas:"100-41-4", un:"1175", flashPoint:"15", nfpa30:"Class IC", nfpa400:"נוזלים דליקים", health:2, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"קומן (איזופרופיל בנזן)", nameEng:"Cumene", formula:"C₉H₁₂", cas:"98-82-8", un:"1918", flashPoint:"36", nfpa30:"Class IC", nfpa400:"נוזלים בעירים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"מזיטילן", nameEng:"Mesitylene", formula:"C₉H₁₂", cas:"108-67-8", un:"2325", flashPoint:"44", nfpa30:"Class IIIA", nfpa400:"נוזלים בעירים", health:1, fire:2, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"n-פנטאן", nameEng:"n-Pentane", formula:"C₅H₁₂", cas:"109-66-0", un:"1265", flashPoint:"-49", nfpa30:"Class IA", nfpa400:"נוזלים דליקים", health:1, fire:4, reactivity:0, maqStorage:"113.6", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"n-אוקטאן", nameEng:"n-Octane", formula:"C₈H₁₈", cas:"111-65-9", un:"1262", flashPoint:"13", nfpa30:"Class IC", nfpa400:"נוזלים דליקים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"n-דקאן", nameEng:"n-Decane", formula:"C₁₀H₂₂", cas:"124-18-5", un:"2247", flashPoint:"46", nfpa30:"Class IIIA", nfpa400:"נוזלים בעירים", health:1, fire:2, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"איזו-פרופנול (IPA)", nameEng:"Isopropyl Alcohol", formula:"C₃H₈O", cas:"67-63-0", un:"1219", flashPoint:"12", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"tert-בוטנול", nameEng:"tert-Butanol", formula:"C₄H₁₀O", cas:"75-65-0", un:"1120", flashPoint:"11", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"פרופילן גליקול", nameEng:"Propylene Glycol", formula:"C₃H₈O₂", cas:"57-55-6", un:"לא רלוונטי", flashPoint:"99", nfpa30:"Class II", nfpa400:"נוזלים בעירים", health:1, fire:1, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"2-Butoxyethanol", nameEng:"2-Butoxyethanol", formula:"C₆H₁₄O₂", cas:"111-76-2", un:"2369", flashPoint:"62", nfpa30:"Class IIIA", nfpa400:"נוזלים בעירים", health:2, fire:2, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"ציקלוהקסאנון", nameEng:"Cyclohexanone", formula:"C₆H₁₀O", cas:"108-94-1", un:"1915", flashPoint:"44", nfpa30:"Class IIIA", nfpa400:"נוזלים בעירים", health:1, fire:2, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"אצטופנון", nameEng:"Acetophenone", formula:"C₈H₈O", cas:"98-86-2", un:"2621", flashPoint:"77", nfpa30:"Class IIIA", nfpa400:"נוזלים בעירים", health:1, fire:2, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" },
+  { nameHeb:"מתיל אצטט", nameEng:"Methyl Acetate", formula:"C₃H₆O₂", cas:"79-20-9", un:"1231", flashPoint:"-10", nfpa30:"Class IB", nfpa400:"נוזלים דליקים", health:1, fire:3, reactivity:0, maqStorage:"454.2", maqUnit:"ליטר", protectionLevel:"3" }
+];
+
+/* ═══════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════ */
+let sortKey = 'nameHeb';
+let sortDir = 1;
+let filteredData = [...CHEMICALS_DATA];
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+function init() {
+  // Date
+  const now = new Date();
+  document.getElementById('headerDate').textContent =
+    now.toLocaleDateString('he-IL', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // KPIs
+  document.getElementById('kpiTotal').textContent = CHEMICALS_DATA.length;
+  document.getElementById('kpiHighFire').textContent = CHEMICALS_DATA.filter(c => c.fire >= 3).length;
+  document.getElementById('kpiHighHealth').textContent = CHEMICALS_DATA.filter(c => c.health >= 3).length;
+  document.getElementById('kpiHighReact').textContent = CHEMICALS_DATA.filter(c => c.reactivity >= 3).length;
+
+  const cats = new Set(CHEMICALS_DATA.map(c => c.nfpa400).filter(Boolean));
+  document.getElementById('kpiCats').textContent = cats.size;
+
+  // Category filter dropdown
+  const catSel = document.getElementById('filterCat');
+  [...cats].sort().forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    catSel.appendChild(opt);
+  });
+
+  drawCategoryChart();
+  drawFireDonut();
+  renderTable(CHEMICALS_DATA);
+}
+
+/* ═══════════════════════════════════════════════════
+   CHART 1: Category Bar Chart (Canvas)
+═══════════════════════════════════════════════════ */
+function drawCategoryChart() {
+  const canvas = document.getElementById('catChart');
+  const container = canvas.parentElement;
+  canvas.width = container.clientWidth - 40;
+  if (canvas.width < 200) canvas.width = 200;
+  const ctx = canvas.getContext('2d');
+
+  // Count categories
+  const catMap = {};
+  CHEMICALS_DATA.forEach(c => {
+    const k = c.nfpa400 || 'לא מוגדר';
+    catMap[k] = (catMap[k] || 0) + 1;
+  });
+  const sorted = Object.entries(catMap).sort((a,b) => b[1] - a[1]);
+
+  const barH   = 24;
+  const gap    = 10;
+  const labelW = 200;
+  const paddingTop = 10;
+  const paddingRight = 40;
+  const chartW = canvas.width - labelW - paddingRight;
+  canvas.height = sorted.length * (barH + gap) + paddingTop + 20;
+
+  const maxVal = sorted[0][1];
+
+  const colors = [
+    '#3b82f6','#ef4444','#f59e0b','#10b981','#8b5cf6',
+    '#ec4899','#06b6d4','#84cc16','#f97316','#6366f1',
+    '#14b8a6','#e11d48'
+  ];
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = '13px Segoe UI, Arial';
+
+  sorted.forEach(([cat, count], i) => {
+    const y = paddingTop + i * (barH + gap);
+    const barW = (count / maxVal) * chartW;
+
+    // Label (RTL: drawn from right side)
+    ctx.fillStyle = '#334155';
+    ctx.textAlign = 'right';
+    ctx.fillText(cat.length > 22 ? cat.slice(0,22)+'…' : cat, canvas.width - paddingRight, y + barH - 6);
+
+    // Bar (LTR direction from labelW)
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.beginPath();
+    ctx.roundRect(0, y, barW, barH, 4);
+    ctx.fill();
+
+    // Count label
+    ctx.fillStyle = '#0f172a';
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 12px Segoe UI, Arial';
+    ctx.fillText(count, barW + 6, y + barH - 6);
+    ctx.font = '13px Segoe UI, Arial';
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   CHART 2: Fire Risk Donut (Canvas)
+═══════════════════════════════════════════════════ */
+function drawFireDonut() {
+  const canvas = document.getElementById('fireChart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const levels = {0:0, 1:0, 2:0, 3:0, 4:0};
+  CHEMICALS_DATA.forEach(c => { levels[c.fire]++; });
+
+  const colors = { 0:'#22c55e', 1:'#eab308', 2:'#f97316', 3:'#ef4444', 4:'#7c3aed' };
+  const labels = { 0:'רמה 0', 1:'רמה 1', 2:'רמה 2', 3:'רמה 3', 4:'רמה 4' };
+  const total = CHEMICALS_DATA.length;
+
+  const cx = W / 2 - 10;
+  const cy = H / 2 - 20;
+  const r  = 70;
+  const ri = 42;
+
+  ctx.clearRect(0, 0, W, H);
+
+  let startAngle = -Math.PI / 2;
+  Object.entries(levels).forEach(([lvl, cnt]) => {
+    if (!cnt) return;
+    const slice = (cnt / total) * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, startAngle, startAngle + slice);
+    ctx.closePath();
+    ctx.fillStyle = colors[lvl];
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    startAngle += slice;
+  });
+
+  // Hole
+  ctx.beginPath();
+  ctx.arc(cx, cy, ri, 0, 2 * Math.PI);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+
+  // Center text
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 22px Segoe UI, Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(total, cx, cy + 4);
+  ctx.font = '11px Segoe UI, Arial';
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('חומרים', cx, cy + 18);
+
+  // Legend
+  const legendY = H - 30;
+  const itemW = 44;
+  const startX = (W - 5 * itemW) / 2;
+  Object.entries(levels).forEach(([lvl, cnt], i) => {
+    const x = startX + i * itemW;
+    ctx.beginPath();
+    ctx.arc(x + 7, legendY + 5, 6, 0, 2 * Math.PI);
+    ctx.fillStyle = colors[lvl];
+    ctx.fill();
+    ctx.fillStyle = '#334155';
+    ctx.font = '10px Segoe UI, Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${lvl}: ${cnt}`, x + 16, legendY + 9);
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   FILTER & SEARCH
+═══════════════════════════════════════════════════ */
+function applyFilters() {
+  const q     = document.getElementById('filterInput').value.trim().toLowerCase();
+  const cat   = document.getElementById('filterCat').value;
+  const fire  = document.getElementById('filterFire').value;
+  const health= document.getElementById('filterHealth').value;
+
+  filteredData = CHEMICALS_DATA.filter(c => {
+    if (q && !(
+      c.nameHeb.toLowerCase().includes(q) ||
+      c.nameEng.toLowerCase().includes(q) ||
+      c.cas.includes(q) ||
+      c.formula.toLowerCase().includes(q) ||
+      String(c.un).includes(q)
+    )) return false;
+    if (cat   && c.nfpa400 !== cat) return false;
+    if (fire  !== '' && c.fire   !== Number(fire))   return false;
+    if (health!== '' && c.health !== Number(health)) return false;
+    return true;
+  });
+
+  renderTable(filteredData);
+}
+
+/* ═══════════════════════════════════════════════════
+   TABLE RENDER
+═══════════════════════════════════════════════════ */
+function riskDot(val) {
+  return `<span class="risk-dot risk-${val}">${val}</span>`;
+}
+
+function catPill(cat) {
+  if (!cat) return '';
+  const cls = 'cat-pill cat-' + cat;
+  return `<span class="${cls}">${cat}</span>`;
+}
+
+function renderTable(data) {
+  document.getElementById('resultCount').textContent = `מציג ${data.length} מתוך ${CHEMICALS_DATA.length} חומרים`;
+  const body = document.getElementById('tableBody');
+  if (!data.length) {
+    body.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:#94a3b8;">לא נמצאו תוצאות</td></tr>`;
+    return;
+  }
+  body.innerHTML = data.map((c, i) => `
+    <tr onclick="openModal(${CHEMICALS_DATA.indexOf(c)})">
+      <td>
+        <div class="chem-name-heb">${c.nameHeb}</div>
+      </td>
+      <td><div class="chem-name-eng" style="color:#334155">${c.nameEng}</div></td>
+      <td><span class="formula-badge">${c.formula}</span></td>
+      <td style="font-family:monospace;font-size:0.85em;color:#475569">${c.cas}</td>
+      <td>${catPill(c.nfpa400)}</td>
+      <td style="text-align:center">${riskDot(c.health)}</td>
+      <td style="text-align:center">${riskDot(c.fire)}</td>
+      <td style="text-align:center">${riskDot(c.reactivity)}</td>
+      <td style="font-size:0.85em;color:#475569">${c.flashPoint ? c.flashPoint + (isNaN(c.flashPoint) ? '' : '°C') : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════════════
+   SORT
+═══════════════════════════════════════════════════ */
+function sortTable(key) {
+  if (sortKey === key) sortDir *= -1;
+  else { sortKey = key; sortDir = 1; }
+
+  // Reset arrows
+  document.querySelectorAll('.sort-arrow').forEach(el => el.textContent = '↕');
+  const arr = document.getElementById('arr-' + key);
+  if (arr) {
+    arr.textContent = sortDir === 1 ? '↑' : '↓';
+    arr.closest('th').classList.add('sorted');
+  }
+
+  filteredData.sort((a, b) => {
+    const av = a[key], bv = b[key];
+    if (typeof av === 'number') return (av - bv) * sortDir;
+    return String(av).localeCompare(String(bv), 'he') * sortDir;
+  });
+  renderTable(filteredData);
+}
+
+/* ═══════════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════════ */
+const riskColors = ['#22c55e','#eab308','#f97316','#ef4444','#7c3aed'];
+
+function openModal(idx) {
+  const c = CHEMICALS_DATA[idx];
+
+  document.getElementById('mNameHeb').textContent = c.nameHeb;
+  document.getElementById('mNameEng').textContent = c.nameEng;
+  document.getElementById('mFormula').textContent  = c.formula;
+
+  // NFPA diamond
+  document.getElementById('nfpaH').textContent = c.health;
+  document.getElementById('nfpaF').textContent = c.fire;
+  document.getElementById('nfpaR').textContent = c.reactivity;
+  document.getElementById('nfpaTop').setAttribute('fill', riskColors[c.health] || '#e2e8f0');
+  document.getElementById('nfpaRight').setAttribute('fill', riskColors[c.fire]   || '#e2e8f0');
+  document.getElementById('nfpaBottom').setAttribute('fill', riskColors[Math.min(c.reactivity, 4)] || '#e2e8f0');
+
+  // Details
+  const rows = [
+    ['CAS', c.cas],
+    ['UN', c.un],
+    ['NFPA 30', c.nfpa30 || '—'],
+    ['NFPA 400', c.nfpa400 || '—'],
+    ['נקודת הבזק', c.flashPoint ? c.flashPoint + (isNaN(c.flashPoint) ? '' : ' °C') : '—'],
+    ['MAQ אחסון', c.maqStorage ? `${c.maqStorage} ${c.maqUnit}` : '—'],
+    ['רמת הגנה', c.protectionLevel || '—'],
+  ];
+
+  document.getElementById('mDetails').innerHTML = rows.map(([label, val]) => `
+    <div class="modal-detail-row">
+      <span class="modal-detail-label">${label}</span>
+      <span class="modal-detail-value">${val}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay'))
+    document.getElementById('modalOverlay').classList.remove('active');
+}
+function closeModalBtn() {
+  document.getElementById('modalOverlay').classList.remove('active');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('modalOverlay').classList.remove('active');
+});
+
+/* ═══════════════════════════════════════════════════
+   PUBCHEM
+═══════════════════════════════════════════════════ */
+async function runPubChem() {
+  const q = document.getElementById('pubchemInput').value.trim();
+  if (!q) return;
+
+  const btn = document.querySelector('.btn-pubchem');
+  const out = document.getElementById('pubchemResult');
+  btn.disabled = true;
+  out.innerHTML = '<div class="pubchem-loading">מחפש ב-PubChem...</div>';
+
+  try {
+    const url = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(q)}/JSON`;
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error('not found');
+    const data = await res.json();
+    const cmp  = data.PC_Compounds[0];
+
+    const props = cmp.props || [];
+    const iupac = props.find(p => p.urn && p.urn.label === 'IUPAC Name' && p.urn.name === 'Preferred');
+    const mol   = props.find(p => p.urn && p.urn.label === 'Molecular Formula');
+    const mw    = props.find(p => p.urn && p.urn.label === 'Molecular Weight');
+    const casP  = props.find(p => p.urn && p.urn.label === 'CAS');
+
+    out.innerHTML = `
+      <div class="pubchem-result-card">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><div class="label">IUPAC Name</div><div class="value">${iupac ? iupac.value.sval : q}</div></div>
+          <div><div class="label">Molecular Formula</div><div class="value">${mol ? mol.value.sval : '—'}</div></div>
+          <div><div class="label">Molecular Weight</div><div class="value">${mw ? mw.value.fval + ' g/mol' : '—'}</div></div>
+          <div><div class="label">CAS</div><div class="value">${casP ? casP.value.sval : '—'}</div></div>
+          <div style="grid-column:1/-1"><div class="label">PubChem CID</div><div class="value">${cmp.id.id.cid}</div></div>
+        </div>
+        <div style="margin-top:10px;font-size:0.78em;color:#64748b">
+          * מידע NFPA אינו זמין ב-PubChem — יש לעיין ב-SDS הרשמי
+        </div>
+      </div>`;
+  } catch {
+    out.innerHTML = `<div class="pubchem-error">החומר "${q}" לא נמצא ב-PubChem. נסה שם אנגלי או מספר CAS.</div>`;
+  }
+  btn.disabled = false;
+}
+
+document.getElementById('pubchemInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runPubChem();
+});
+
+/* ─── START ─── */
+window.addEventListener('load', init);
+window.addEventListener('resize', () => {
+  drawCategoryChart();
+  drawFireDonut();
+});
+</script>
+</body>
+</html>
