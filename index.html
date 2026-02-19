@@ -1031,7 +1031,7 @@
                 const compound = data.PC_Compounds[0];
 
                 const result = {
-                    nameEng: compound.id?.name || query,
+                    nameEng: (compound.id && compound.id.name) || query,
                     nameHeb: query,
                     formula: extractFormula(compound),
                     cas: extractCAS(compound.props),
@@ -1083,8 +1083,8 @@
         }
 
         function extractCAS(props) {
-            const cas = props?.find(p => p.urn?.label === 'CAS');
-            return cas?.value?.sval || '';
+            const cas = props && props.find(function(p) { return p.urn && p.urn.label === 'CAS'; });
+            return (cas && cas.value && cas.value.sval) || '';
         }
 
         // הצג תוצאת PubChem
