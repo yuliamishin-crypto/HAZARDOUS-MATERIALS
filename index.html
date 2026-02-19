@@ -1,64 +1,1150 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<title>מאגר נתונים</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<style>
-body { font-family: Arial; direction: rtl; }
-table { border-collapse: collapse; width: 100%; }
-th, td { border: 1px solid #ccc; padding: 8px; }
-th { background-color: #f2f2f2; }
-#search { margin: 10px 0; padding: 8px; width: 300px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מאגר חומרים מסוכנים - HAZMAT + PubChem</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 { color: #1F4E78; font-size: 2.5em; }
+        .subtitle { color: #666; font-size: 1.2em; margin-top: 10px; }
+
+        .search-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        #searchInput {
+            flex: 1;
+            min-width: 300px;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+        }
+
+        select {
+            padding: 12px 15px;
+            font-size: 14px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .stat-number { font-size: 2em; font-weight: bold; }
+        .stat-label { font-size: 0.9em; opacity: 0.9; }
+
+        .results-section {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .chemical-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+
+        .chemical-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .chemical-card.pubchem { border-color: #28a745; background: #f0fff4; }
+        .pubchem-badge {
+            background: #28a745;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .name-heb { font-size: 1.4em; font-weight: bold; color: #1F4E78; margin-bottom: 5px; }
+        .name-eng { color: #666; font-size: 1em; }
+        .formula { font-size: 1.3em; font-weight: bold; color: #764ba2; }
+
+        .chemical-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .detail-item {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            border-right: 4px solid #667eea;
+        }
+
+        .detail-label { font-weight: bold; color: #1F4E78; font-size: 0.9em; }
+        .detail-value { color: #333; font-size: 1.1em; margin-top: 5px; }
+
+        .loading { text-align: center; padding: 40px; }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+        .no-results { text-align: center; padding: 60px 20px; color: #666; }
+        .no-results-icon { font-size: 4em; margin-bottom: 20px; }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <header>
+            <h1>🔬 מאגר חומרים מסוכנים</h1>
+            <p class="subtitle">HAZMAT Database - NFPA 30 & 400 + PubChem Integration</p>
+        </header>
 
-<h2>מאגר נתונים</h2>
+        <div class="search-section">
+            <div class="search-box">
+                <select id="searchType">
+                    <option value="all">🔍 חיפוש כללי</option>
+                    <option value="nameHeb">🇮🇱 שם עברית</option>
+                    <option value="nameEng">🇺🇸 שם אנגלית</option>
+                    <option value="cas">🔢 CAS Number</option>
+                </select>
 
-<input type="text" id="search" placeholder="חיפוש..." onkeyup="searchTable()">
+                <input type="text" id="searchInput" placeholder="🔍 חפש חומר... אם לא נמצא, אחפש ב-PubChem!">
+            </div>
 
-<table id="data-table"></table>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCount">0</div>
+                    <div class="stat-label">סה"כ חומרים</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="resultCount">0</div>
+                    <div class="stat-label">תוצאות</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="pubchemCount">0</div>
+                    <div class="stat-label">מ-PubChem</div>
+                </div>
+            </div>
+        </div>
 
-<script>
-Papa.parse("data.csv", {
-    download: true,
-    header: true,
-    complete: function(results) {
-        const data = results.data;
-        const table = document.getElementById("data-table");
+        <div class="results-section" id="resultsSection"></div>
+    </div>
 
-        if (data.length === 0) return;
+    <script>
+        // נתונים מוטמעים ישירות בקוד
+        const CHEMICALS_DATA = [
+  {
+    "nameHeb": "אתנול",
+    "nameEng": "Ethanol",
+    "formula": "C₂H₅OH",
+    "cas": "64-17-5",
+    "un": "1170",
+    "flashPoint": "13",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 2,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "אצטון",
+    "nameEng": "Acetone",
+    "formula": "CH₃COCH₃",
+    "cas": "67-64-1",
+    "un": "1090",
+    "flashPoint": "-18",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "מימן נוזלי",
+    "nameEng": "Liquid Hydrogen",
+    "formula": "H₂",
+    "cas": "1333-74-0",
+    "un": "1966",
+    "flashPoint": "גז",
+    "nfpa30": "",
+    "nfpa400": "גזים דליקים קריוגניים",
+    "health": 0,
+    "fire": 4,
+    "reactivity": 3,
+    "maqStorage": "",
+    "maqUnit": "מ\"ק",
+    "protectionLevel": "2"
+  },
+  {
+    "nameHeb": "נתרן",
+    "nameEng": "Sodium",
+    "formula": "Na",
+    "cas": "7440-23-5",
+    "un": "1428",
+    "flashPoint": "לא רלוונטי",
+    "nfpa30": "",
+    "nfpa400": "חומרים רגישים למים",
+    "health": 3,
+    "fire": 1,
+    "reactivity": 3,
+    "maqStorage": "45.4",
+    "maqUnit": "מ\"ק",
+    "protectionLevel": "2"
+  },
+  {
+    "nameHeb": "חמצן נוזלי",
+    "nameEng": "Liquid Oxygen",
+    "formula": "O₂",
+    "cas": "7782-44-7",
+    "un": "1073",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "חומרים מחמצנים קריוגניים",
+    "health": 0,
+    "fire": 0,
+    "reactivity": 0,
+    "maqStorage": "",
+    "maqUnit": "",
+    "protectionLevel": ""
+  },
+  {
+    "nameHeb": "בנזן",
+    "nameEng": "Benzene",
+    "formula": "C₆H₆",
+    "cas": "71-43-2",
+    "un": "1114",
+    "flashPoint": "-11",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 2,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "מתנול",
+    "nameEng": "Methanol",
+    "formula": "CH₃OH",
+    "cas": "67-56-1",
+    "un": "1230",
+    "flashPoint": "11",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "טולואן",
+    "nameEng": "Toluene",
+    "formula": "C₇H₈",
+    "cas": "108-88-3",
+    "un": "1294",
+    "flashPoint": "4",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 2,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "חומצה גופרתית 98%",
+    "nameEng": "Sulfuric Acid 98%",
+    "formula": "H₂SO₄",
+    "cas": "7664-93-9",
+    "un": "1830",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "חומרים קורוזיביים",
+    "health": 3,
+    "fire": 0,
+    "reactivity": 2,
+    "maqStorage": "454",
+    "maqUnit": "מ\"ק",
+    "protectionLevel": "N/A"
+  },
+  {
+    "nameHeb": "אמוניה נוזלית",
+    "nameEng": "Liquid Ammonia",
+    "formula": "NH₃",
+    "cas": "7664-41-7",
+    "un": "1005",
+    "flashPoint": "גז",
+    "nfpa30": "",
+    "nfpa400": "גזים רעילים",
+    "health": 3,
+    "fire": 1,
+    "reactivity": 0,
+    "maqStorage": "227",
+    "maqUnit": "מ\"ק",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "כלור",
+    "nameEng": "Chlorine",
+    "formula": "Cl₂",
+    "cas": "7782-50-5",
+    "un": "1017",
+    "flashPoint": "גז",
+    "nfpa30": "",
+    "nfpa400": "גזים רעילים",
+    "health": 3,
+    "fire": 0,
+    "reactivity": 0,
+    "maqStorage": "227",
+    "maqUnit": "מ\"ק",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "פרופאן",
+    "nameEng": "Propane",
+    "formula": "C₃H₈",
+    "cas": "74-98-6",
+    "un": "1075",
+    "flashPoint": "גז",
+    "nfpa30": "",
+    "nfpa400": "גזים דליקים",
+    "health": 1,
+    "fire": 4,
+    "reactivity": 0,
+    "maqStorage": "",
+    "maqUnit": "מ\"ק",
+    "protectionLevel": "2"
+  },
+  {
+    "nameHeb": "מימן פרוקסיד 35%",
+    "nameEng": "Hydrogen Peroxide 35%",
+    "formula": "H₂O₂",
+    "cas": "7722-84-1",
+    "un": "2015",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "חומרים מחמצנים",
+    "health": 2,
+    "fire": 0,
+    "reactivity": 1,
+    "maqStorage": "",
+    "maqUnit": "",
+    "protectionLevel": ""
+  },
+  {
+    "nameHeb": "אצטילן",
+    "nameEng": "Acetylene",
+    "formula": "C₂H₂",
+    "cas": "74-86-2",
+    "un": "1001",
+    "flashPoint": "גז",
+    "nfpa30": "",
+    "nfpa400": "גזים דליקים",
+    "health": 1,
+    "fire": 4,
+    "reactivity": 3,
+    "maqStorage": "",
+    "maqUnit": "מ\"ק",
+    "protectionLevel": "2"
+  },
+  {
+    "nameHeb": "נתרן מתכתי",
+    "nameEng": "Sodium Metal",
+    "formula": "Na",
+    "cas": "7440-23-5",
+    "un": "1428",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "חומרים רגישים למים",
+    "health": 3,
+    "fire": 1,
+    "reactivity": 3,
+    "maqStorage": "45.4",
+    "maqUnit": "מ\"ק",
+    "protectionLevel": "2"
+  },
+  {
+    "nameHeb": "THF (טטרהידרופוראן)",
+    "nameEng": "Tetrahydrofuran",
+    "formula": "C₄H₈O",
+    "cas": "109-99-9",
+    "un": "2056",
+    "flashPoint": "-14",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 2,
+    "fire": 3,
+    "reactivity": 1,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "דיכלורומתאן (DCM)",
+    "nameEng": "Dichloromethane",
+    "formula": "CH₂Cl₂",
+    "cas": "75-09-2",
+    "un": "1593",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "לא דליק",
+    "health": 2,
+    "fire": 0,
+    "reactivity": 0,
+    "maqStorage": "",
+    "maqUnit": "",
+    "protectionLevel": ""
+  },
+  {
+    "nameHeb": "כלורופורם",
+    "nameEng": "Chloroform",
+    "formula": "CHCl₃",
+    "cas": "67-66-3",
+    "un": "1888",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "לא דליק",
+    "health": 2,
+    "fire": 0,
+    "reactivity": 0,
+    "maqStorage": "",
+    "maqUnit": "",
+    "protectionLevel": ""
+  },
+  {
+    "nameHeb": "פחמן דו-גופרתי",
+    "nameEng": "Carbon Disulfide",
+    "formula": "CS₂",
+    "cas": "75-15-0",
+    "un": "1131",
+    "flashPoint": "-30",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 2,
+    "fire": 4,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "ציקלוהקסאן",
+    "nameEng": "Cyclohexane",
+    "formula": "C₆H₁₂",
+    "cas": "110-82-7",
+    "un": "1145",
+    "flashPoint": "-20",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "n-הפטאן",
+    "nameEng": "n-Heptane",
+    "formula": "C₇H₁₆",
+    "cas": "142-82-5",
+    "un": "1206",
+    "flashPoint": "-4",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "הליום נוזלי",
+    "nameEng": "Liquid Helium",
+    "formula": "He",
+    "cas": "7440-59-7",
+    "un": "1963",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "גזים קריוגניים אינרטיים",
+    "health": 0,
+    "fire": 0,
+    "reactivity": 0,
+    "maqStorage": "",
+    "maqUnit": "",
+    "protectionLevel": "N/A"
+  },
+  {
+    "nameHeb": "אתאן נוזלי (LNG)",
+    "nameEng": "Liquid Ethane",
+    "formula": "C₂H₆",
+    "cas": "74-84-0",
+    "un": "1961",
+    "flashPoint": "גז",
+    "nfpa30": "",
+    "nfpa400": "גזים דליקים קריוגניים",
+    "health": 1,
+    "fire": 4,
+    "reactivity": 0,
+    "maqStorage": "",
+    "maqUnit": "מ\"ק",
+    "protectionLevel": "2"
+  },
+  {
+    "nameHeb": "חומצה פוספורית 85%",
+    "nameEng": "Phosphoric Acid 85%",
+    "formula": "H₃PO₄",
+    "cas": "7664-38-2",
+    "un": "1805",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "חומרים קורוזיביים",
+    "health": 3,
+    "fire": 0,
+    "reactivity": 0,
+    "maqStorage": "454",
+    "maqUnit": "מ\"ק",
+    "protectionLevel": "N/A"
+  },
+  {
+    "nameHeb": "חומצה אצטית קרחונית",
+    "nameEng": "Glacial Acetic Acid",
+    "formula": "CH₃COOH",
+    "cas": "64-19-7",
+    "un": "2789",
+    "flashPoint": "39",
+    "nfpa30": "Class II",
+    "nfpa400": "נוזלים בעירים",
+    "health": 3,
+    "fire": 2,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "n-בוטנול",
+    "nameEng": "n-Butanol",
+    "formula": "C₄H₉OH",
+    "cas": "71-36-3",
+    "un": "1120",
+    "flashPoint": "29",
+    "nfpa30": "Class IC",
+    "nfpa400": "נוזלים בעירים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "אתילן גליקול",
+    "nameEng": "Ethylene Glycol",
+    "formula": "C₂H₆O₂",
+    "cas": "107-21-1",
+    "un": "לא רלוונטי",
+    "flashPoint": "111",
+    "nfpa30": "Class IIIA",
+    "nfpa400": "נוזלים בעירים",
+    "health": 1,
+    "fire": 1,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "טריכלורואתילן (TCE)",
+    "nameEng": "Trichloroethylene",
+    "formula": "C₂HCl₃",
+    "cas": "79-01-6",
+    "un": "1710",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "לא דליק",
+    "health": 2,
+    "fire": 0,
+    "reactivity": 0,
+    "maqStorage": "",
+    "maqUnit": "",
+    "protectionLevel": ""
+  },
+  {
+    "nameHeb": "פרכלורואתילן (PERC)",
+    "nameEng": "Perchloroethylene",
+    "formula": "C₂Cl₄",
+    "cas": "127-18-4",
+    "un": "1897",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "לא דליק",
+    "health": 0,
+    "fire": 0,
+    "reactivity": 0,
+    "maqStorage": "",
+    "maqUnit": "",
+    "protectionLevel": ""
+  },
+  {
+    "nameHeb": "חנקתי נתרן",
+    "nameEng": "Sodium Nitrate",
+    "formula": "NaNO₃",
+    "cas": "7631-99-4",
+    "un": "1498",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "חומרים מחמצנים",
+    "health": 1,
+    "fire": 0,
+    "reactivity": 1,
+    "maqStorage": "",
+    "maqUnit": "",
+    "protectionLevel": ""
+  },
+  {
+    "nameHeb": "כלורי נתרן (אקונומיקה)",
+    "nameEng": "Sodium Hypochlorite",
+    "formula": "NaClO",
+    "cas": "7681-52-9",
+    "un": "1791",
+    "flashPoint": "לא דליק",
+    "nfpa30": "",
+    "nfpa400": "חומרים מחמצנים",
+    "health": 2,
+    "fire": 0,
+    "reactivity": 1,
+    "maqStorage": "",
+    "maqUnit": "",
+    "protectionLevel": ""
+  },
+  {
+    "nameHeb": "בוטיל אצטט",
+    "nameEng": "Butyl Acetate",
+    "formula": "C₆H₁₂O₂",
+    "cas": "123-86-4",
+    "un": "1123",
+    "flashPoint": "22",
+    "nfpa30": "Class IC",
+    "nfpa400": "נוזלים דליקים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "MIBK (מתיל איזובוטיל קטון)",
+    "nameEng": "Methyl Isobutyl Ketone",
+    "formula": "C₆H₁₂O",
+    "cas": "108-10-1",
+    "un": "2053",
+    "flashPoint": "14",
+    "nfpa30": "Class IC",
+    "nfpa400": "נוזלים דליקים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "TNT (טרי-ניטרו טולואן)",
+    "nameEng": "Trinitrotoluene",
+    "formula": "C₇H₅N₃O₆",
+    "cas": "118-96-7",
+    "un": "0209",
+    "flashPoint": "מוצק",
+    "nfpa30": "",
+    "nfpa400": "חומרי נפץ",
+    "health": 2,
+    "fire": 4,
+    "reactivity": 4,
+    "maqStorage": "",
+    "maqUnit": "",
+    "protectionLevel": ""
+  },
+  {
+    "nameHeb": "חנקתי אמוניום",
+    "nameEng": "Ammonium Nitrate",
+    "formula": "NH₄NO₃",
+    "cas": "6484-52-2",
+    "un": "1942",
+    "flashPoint": "מוצק",
+    "nfpa30": "",
+    "nfpa400": "חומרים מחמצנים",
+    "health": 1,
+    "fire": 0,
+    "reactivity": 3,
+    "maqStorage": "",
+    "maqUnit": "",
+    "protectionLevel": ""
+  },
+  {
+    "nameHeb": "אתיל בנזן",
+    "nameEng": "Ethylbenzene",
+    "formula": "C₈H₁₀",
+    "cas": "100-41-4",
+    "un": "1175",
+    "flashPoint": "15",
+    "nfpa30": "Class IC",
+    "nfpa400": "נוזלים דליקים",
+    "health": 2,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "קומן (איזופרופיל בנזן)",
+    "nameEng": "Cumene",
+    "formula": "C₉H₁₂",
+    "cas": "98-82-8",
+    "un": "1918",
+    "flashPoint": "36",
+    "nfpa30": "Class IC",
+    "nfpa400": "נוזלים בעירים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "מזיטילן (1,3,5-טרימתיל בנזן)",
+    "nameEng": "Mesitylene",
+    "formula": "C₉H₁₂",
+    "cas": "108-67-8",
+    "un": "2325",
+    "flashPoint": "44",
+    "nfpa30": "Class IIIA",
+    "nfpa400": "נוזלים בעירים",
+    "health": 1,
+    "fire": 2,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "n-פנטאן",
+    "nameEng": "n-Pentane",
+    "formula": "C₅H₁₂",
+    "cas": "109-66-0",
+    "un": "1265",
+    "flashPoint": "-49",
+    "nfpa30": "Class IA",
+    "nfpa400": "נוזלים דליקים",
+    "health": 1,
+    "fire": 4,
+    "reactivity": 0,
+    "maqStorage": "113.6",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "n-אוקטאן",
+    "nameEng": "n-Octane",
+    "formula": "C₈H₁₈",
+    "cas": "111-65-9",
+    "un": "1262",
+    "flashPoint": "13",
+    "nfpa30": "Class IC",
+    "nfpa400": "נוזלים דליקים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "n-דקאן",
+    "nameEng": "n-Decane",
+    "formula": "C₁₀H₂₂",
+    "cas": "124-18-5",
+    "un": "2247",
+    "flashPoint": "46",
+    "nfpa30": "Class IIIA",
+    "nfpa400": "נוזלים בעירים",
+    "health": 1,
+    "fire": 2,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "איזו-פרופנול (IPA)",
+    "nameEng": "Isopropyl Alcohol",
+    "formula": "C₃H₈O",
+    "cas": "67-63-0",
+    "un": "1219",
+    "flashPoint": "12",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "tert-בוטנול",
+    "nameEng": "tert-Butanol",
+    "formula": "C₄H₁₀O",
+    "cas": "75-65-0",
+    "un": "1120",
+    "flashPoint": "11",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "פרופילן גליקול",
+    "nameEng": "Propylene Glycol",
+    "formula": "C₃H₈O₂",
+    "cas": "57-55-6",
+    "un": "לא רלוונטי",
+    "flashPoint": "99",
+    "nfpa30": "Class II",
+    "nfpa400": "נוזלים בעירים",
+    "health": 1,
+    "fire": 1,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "גליקול אתרים - 2-butoxyethanol",
+    "nameEng": "2-Butoxyethanol",
+    "formula": "C₆H₁₄O₂",
+    "cas": "111-76-2",
+    "un": "2369",
+    "flashPoint": "62",
+    "nfpa30": "Class IIIA",
+    "nfpa400": "נוזלים בעירים",
+    "health": 2,
+    "fire": 2,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "ציקלוהקסאנון",
+    "nameEng": "Cyclohexanone",
+    "formula": "C₆H₁₀O",
+    "cas": "108-94-1",
+    "un": "1915",
+    "flashPoint": "44",
+    "nfpa30": "Class IIIA",
+    "nfpa400": "נוזלים בעירים",
+    "health": 1,
+    "fire": 2,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "אצטופנון",
+    "nameEng": "Acetophenone",
+    "formula": "C₈H₈O",
+    "cas": "98-86-2",
+    "un": "2621",
+    "flashPoint": "77",
+    "nfpa30": "Class IIIA",
+    "nfpa400": "נוזלים בעירים",
+    "health": 1,
+    "fire": 2,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  },
+  {
+    "nameHeb": "מתיל אצטט",
+    "nameEng": "Methyl Acetate",
+    "formula": "C₃H₆O₂",
+    "cas": "79-20-9",
+    "un": "1231",
+    "flashPoint": "-10",
+    "nfpa30": "Class IB",
+    "nfpa400": "נוזלים דליקים",
+    "health": 1,
+    "fire": 3,
+    "reactivity": 0,
+    "maqStorage": "454.2",
+    "maqUnit": "ליטר",
+    "protectionLevel": "3"
+  }
+];
 
-        let headerRow = "<tr>";
-        Object.keys(data[0]).forEach(key => {
-            headerRow += "<th>" + key + "</th>";
-        });
-        headerRow += "</tr>";
-        table.innerHTML = headerRow;
+        let pubchemResults = [];
 
-        data.forEach(row => {
-            let rowHTML = "<tr>";
-            Object.values(row).forEach(value => {
-                rowHTML += "<td>" + value + "</td>";
+        // טען נתונים
+        function init() {
+            document.getElementById('totalCount').textContent = CHEMICALS_DATA.length;
+            displayResults(CHEMICALS_DATA);
+        }
+
+        // חיפוש
+        function search() {
+            const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+            const searchType = document.getElementById('searchType').value;
+
+            if (!searchTerm) {
+                displayResults(CHEMICALS_DATA);
+                return;
+            }
+
+            // חפש במאגר
+            let results = CHEMICALS_DATA.filter(c => {
+                switch(searchType) {
+                    case 'nameHeb': return c.nameHeb.toLowerCase().includes(searchTerm);
+                    case 'nameEng': return c.nameEng.toLowerCase().includes(searchTerm);
+                    case 'cas': return c.cas.includes(searchTerm);
+                    default:
+                        return c.nameHeb.toLowerCase().includes(searchTerm) ||
+                               c.nameEng.toLowerCase().includes(searchTerm) ||
+                               c.cas.includes(searchTerm);
+                }
             });
-            rowHTML += "</tr>";
-            table.innerHTML += rowHTML;
-        });
-    }
-});
 
-function searchTable() {
-    const input = document.getElementById("search").value.toLowerCase();
-    const rows = document.querySelectorAll("#data-table tr");
+            if (results.length === 0 && searchTerm.length > 2) {
+                searchPubChem(searchTerm);
+            } else {
+                displayResults(results);
+            }
+        }
 
-    rows.forEach((row, index) => {
-        if (index === 0) return;
-        const text = row.innerText.toLowerCase();
-        row.style.display = text.includes(input) ? "" : "none";
-    });
-}
-</script>
+        // חיפוש ב-PubChem
+        async function searchPubChem(query) {
+            document.getElementById('resultsSection').innerHTML = `
+                <div class="alert alert-info">
+                    🔍 מחפש "${query}" ב-PubChem...
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            `;
 
+            try {
+                const url = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(query)}/JSON`;
+                const response = await fetch(url);
+
+                if (!response.ok) throw new Error('Not found');
+
+                const data = await response.json();
+                const compound = data.PC_Compounds[0];
+
+                const result = {
+                    nameEng: compound.id?.name || query,
+                    nameHeb: query,
+                    formula: extractFormula(compound),
+                    cas: extractCAS(compound.props),
+                    source: 'PubChem'
+                };
+
+                displayPubChemResult(result);
+
+            } catch (error) {
+                document.getElementById('resultsSection').innerHTML = `
+                    <div class="alert alert-warning">
+                        ❌ החומר "${query}" לא נמצא ב-PubChem.
+                        <p>נסה לחפש בשם אנגלי או מספר CAS.</p>
+                    </div>
+                    <div class="no-results">
+                        <div class="no-results-icon">🔍</div>
+                        <h2>לא נמצאו תוצאות</h2>
+                    </div>
+                `;
+            }
+        }
+
+        // חלץ נוסחה
+        function extractFormula(compound) {
+            if (!compound.atoms) return '';
+            const elements = {};
+            compound.atoms.element.forEach(el => {
+                const sym = getElementSymbol(el);
+                elements[sym] = (elements[sym] || 0) + 1;
+            });
+
+            let formula = '';
+            ['C','H','N','O','S','P','Cl','F','Br','I'].forEach(el => {
+                if (elements[el]) {
+                    formula += el + (elements[el] > 1 ? toSubscript(elements[el]) : '');
+                    delete elements[el];
+                }
+            });
+            return formula;
+        }
+
+        function getElementSymbol(n) {
+            const e = {1:'H',6:'C',7:'N',8:'O',15:'P',16:'S',17:'Cl',9:'F',35:'Br',53:'I'};
+            return e[n] || `[${n}]`;
+        }
+
+        function toSubscript(n) {
+            return String(n).split('').map(d => '₀₁₂₃₄₅₆₇₈₉'[d]).join('');
+        }
+
+        function extractCAS(props) {
+            const cas = props?.find(p => p.urn?.label === 'CAS');
+            return cas?.value?.sval || '';
+        }
+
+        // הצג תוצאת PubChem
+        function displayPubChemResult(data) {
+            document.getElementById('pubchemCount').textContent = '1';
+            document.getElementById('resultCount').textContent = '1';
+
+            document.getElementById('resultsSection').innerHTML = `
+                <div class="alert alert-success">
+                    ✅ נמצא ב-PubChem!
+                </div>
+                ${createCard(data, true)}
+            `;
+        }
+
+        // הצג תוצאות
+        function displayResults(data) {
+            document.getElementById('resultCount').textContent = data.length;
+            document.getElementById('pubchemCount').textContent = '0';
+
+            if (data.length === 0) {
+                document.getElementById('resultsSection').innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-icon">🔍</div>
+                        <h2>לא נמצאו תוצאות</h2>
+                    </div>
+                `;
+                return;
+            }
+
+            document.getElementById('resultsSection').innerHTML = data.map(c => createCard(c, false)).join('');
+        }
+
+        // יצירת כרטיס
+        function createCard(c, isPubChem) {
+            const badge = isPubChem ? '<span class="pubchem-badge">מ-PubChem</span>' : '';
+            const cardClass = isPubChem ? 'chemical-card pubchem' : 'chemical-card';
+
+            return `
+                <div class="${cardClass}">
+                    <div class="name-heb">${c.nameHeb} ${badge}</div>
+                    <div class="name-eng">${c.nameEng}</div>
+                    ${c.formula ? `<div class="formula">${c.formula}</div>` : ''}
+
+                    <div class="chemical-details">
+                        ${c.cas ? `<div class="detail-item"><div class="detail-label">CAS</div><div class="detail-value">${c.cas}</div></div>` : ''}
+                        ${c.un ? `<div class="detail-item"><div class="detail-label">UN</div><div class="detail-value">${c.un}</div></div>` : ''}
+                        ${c.nfpa30 ? `<div class="detail-item"><div class="detail-label">NFPA 30</div><div class="detail-value">${c.nfpa30}</div></div>` : ''}
+                        ${c.flashPoint ? `<div class="detail-item"><div class="detail-label">נקודת הבזק</div><div class="detail-value">${c.flashPoint}°C</div></div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', search);
+        document.getElementById('searchType').addEventListener('change', search);
+
+        // התחל
+        init();
+    </script>
 </body>
 </html>
